@@ -133,6 +133,20 @@ function setBranchOperatingModel(branchId, operatingModel) {
   });
 }
 
+// ── حسابات المركزي للمتجر ──
+
+function addStoreOwner(storeId, { name, email, password }) {
+  return apiFetch(`/platform/stores/${encodeURIComponent(storeId)}/users`, { method: "POST", body: { name, email, password } });
+}
+
+function updateStoreUser(userId, patch) {
+  return apiFetch(`/platform/store-users/${encodeURIComponent(userId)}`, { method: "PATCH", body: patch });
+}
+
+function resetStoreUserPassword(userId, password) {
+  return apiFetch(`/platform/store-users/${encodeURIComponent(userId)}/password`, { method: "POST", body: { password } });
+}
+
 function fetchLog({ storeId, limit } = {}) {
   const q = new URLSearchParams();
   if (storeId) q.set("storeId", storeId);
@@ -156,5 +170,8 @@ export {
   renewStore,
   setStoreStatus,
   setBranchOperatingModel,
+  addStoreOwner,
+  updateStoreUser,
+  resetStoreUserPassword,
   fetchLog,
 };

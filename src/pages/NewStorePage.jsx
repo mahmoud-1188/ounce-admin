@@ -1,18 +1,8 @@
 import { useState } from "react";
 import { ArrowRight, Copy, KeyRound } from "lucide-react";
 import { createStore } from "../core/api.js";
-import { PLANS, errorMessage, fmtDate } from "../core/constants.js";
+import { CENTRAL_URL, PLANS, errorMessage, fmtDate, generatePassword } from "../core/constants.js";
 import { Card, ErrorBox, Field, btnGhost, btnPrimary, inputCls } from "../ui/common.jsx";
-
-const CENTRAL_URL = (import.meta.env.VITE_CENTRAL_APP_URL || "").replace(/\/+$/, "");
-
-// بلا 0/O و1/l/I — كلمة مرور تُملى على العميل بالهاتف لا تحتمل الالتباس.
-const PW_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
-function generatePassword(len = 12) {
-  const bytes = new Uint32Array(len);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => PW_ALPHABET[b % PW_ALPHABET.length]).join("");
-}
 
 /**
  * نظير «① ترخيص شركة» في النموذج الأولي: نفس الحقول (الاسم · الباقة ·

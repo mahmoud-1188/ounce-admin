@@ -34,6 +34,9 @@ const ACTIONS = {
   store_suspended: "إيقاف",
   store_activated: "تفعيل",
   branch_model_changed: "تغيير نموذج فرع",
+  store_user_created: "إضافة حساب مركزي",
+  store_user_updated: "تعديل حساب مركزي",
+  store_user_password_reset: "كلمة مرور جديدة",
 };
 
 const RENEW_PRESETS = [1, 3, 6, 12];
@@ -94,6 +97,7 @@ function errorMessage(err, fallback = "حدث خطأ غير متوقع") {
     case "branch_not_found": return "الفرع غير موجود";
     case "invalid_operating_model": return "نموذج تشغيل غير صالح";
     case "invalid_status": return "حالة غير صالحة";
+    case "store_user_not_found": return "الحساب غير موجود";
     case "wrong_token_scope":
     case "invalid_or_expired_token":
     case "missing_token":
@@ -103,6 +107,27 @@ function errorMessage(err, fallback = "حدث خطأ غير متوقع") {
       return err?.status ? fallback : "تعذّر الاتصال بالخادم";
   }
 }
+
+// بلا 0/O و1/l/I — كلمة مرور تُملى على العميل بالهاتف لا تحتمل الالتباس.
+const PW_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function generatePassword(len = 12) {
+  const bytes = new Uint32Array(len);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => PW_ALPHABET[b % PW_ALPHABET.length]).join("");
+}
+
+/** يضيف (أو ينقص بقيمة سالبة) أشهرًا لتاريخ — مع ضبط نهاية الشهر (31 → 30/28). */
+function addMonths(iso, months) {
+  const d = new Date(iso);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d.toISOString();
+}
+
+const CENTRAL_URL = (import.meta.env.VITE_CENTRAL_APP_URL || "").replace(/\/+$/, "");
 
 export {
   PLANS,
@@ -118,4 +143,7 @@ export {
   daysLeft,
   expiryText,
   errorMessage,
+  generatePassword,
+  addMonths,
+  CENTRAL_URL,
 };

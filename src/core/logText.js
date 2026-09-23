@@ -23,6 +23,18 @@ function describeLogEntry(e) {
       return d.reason ? `السبب: ${d.reason}` : "";
     case "branch_model_changed":
       return `${d.branchName || e.branchName || ""}: ${branchModelLabel(d.before)} ← ${branchModelLabel(d.after)}`;
+    case "store_user_created":
+      return `${d.name || ""} · ${d.email || ""}`;
+    case "store_user_updated": {
+      const b = d.before || {};
+      const a = d.after || {};
+      const parts = [];
+      if (b.name !== a.name) parts.push(`الاسم: ${b.name} ← ${a.name}`);
+      if (b.email !== a.email) parts.push(`البريد: ${b.email} ← ${a.email}`);
+      return parts.join(" · ") || "بلا تغيير";
+    }
+    case "store_user_password_reset":
+      return d.email || "";
     case "admin_setup":
       return d.email || "";
     default:

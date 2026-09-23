@@ -5,6 +5,7 @@ import {
   BRANCH_MODELS,
   PLANS,
   RENEW_PRESETS,
+  addMonths,
   errorMessage,
   expiryText,
   fmtDate,
@@ -12,6 +13,7 @@ import {
   planLabel,
 } from "../core/constants.js";
 import { actionLabel, describeLogEntry } from "../core/logText.js";
+import StoreAccountsCard from "./StoreAccountsCard.jsx";
 import { Card, ErrorBox, Field, Notice, Stat, StateBadge, btnDanger, btnGhost, btnPrimary, inputCls } from "../ui/common.jsx";
 
 /** تاريخ ISO → قيمة حقل <input type="date"> (بالتوقيت المحلي). */
@@ -37,6 +39,7 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
   const [edit, setEdit] = useState(null);
   const [customMonths, setCustomMonths] = useState("");
   const [reason, setReason] = useState("");
+  const [newDate, setNewDate] = useState("");
 
   const load = () => {
     setError("");
@@ -87,6 +90,26 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
   const renew = (months) => {
     if (months === 0 && !confirm("اجعل اشتراك هذا المتجر بلا انتهاء؟ (للعملاء الدائمين فقط)")) return;
     act(() => renewStore(store.id, months), months ? `جُدِّد ${months} شهر` : "صار الاشتراك بلا انتهاء");
+  };
+
+  // ⚠ الإنقاص وتحديد التاريخ يمرّان عبر PATCH expiresAt (يُسجَّل «تعديل
+  // الاشتراك» بقبل/بعد في السجل) — لا عبر renew الذي يضيف فقط.
+  const reduce = (months) => {
+    const next = addMonths(store.expiresAt, -months);
+    const past = new Date(next).getTime() < Date.now();
+    const msg = past
+      ? `إنقاص ${months} شهر يجعل تاريخ الانتهاء ${fmtDate(next)} — أي منتهيًا فورًا ويُقفل المركزي والفروع. متابعة؟`
+      : `إنقاص ${months} شهر؟ ينتهي الاشتراك في ${fmtDate(next)}.`;
+    if (!confirm(msg)) return;
+    act(() => updateStore(store.id, { expiresAt: next }), `أُنقص ${months} شهر`);
+  };
+
+  const applyDate = async () => {
+    if (!newDate) return;
+    const iso = new Date(`${newDate}T23:59:59`).toISOString();
+    if (new Date(iso).getTime() < Date.now() && !confirm("هذا التاريخ مضى — سيصبح الاشتراك منتهيًا فورًا ويُقفل المركزي والفروع. متابعة؟")) return;
+    const ok = await act(() => updateStore(store.id, { expiresAt: iso }), `تاريخ الانتهاء صار ${newDate}`);
+    if (ok) setNewDate("");
   };
 
   const startEdit = () => {
@@ -151,41 +174,75 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
         />
       </div>
 
-      <Card title="تجديد الاشتراك">
-        <p className="text-xs text-neutral-500 mb-3 leading-6">
-          يُضاف من تاريخ الانتهاء الحالي إن لم يأتِ بعد (لا يخسر العميل ما بقي له)، ومن اليوم إن كان منتهيًا.
-          التجديد لا يرفع الإيقاف.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {RENEW_PRESETS.map((m) => (
-            <button key={m} type="button" disabled={busy} className={btnGhost} onClick={() => renew(m)}>
-              +{m} شهر
-            </button>
-          ))}
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="1"
-              value={customMonths}
-              onChange={(e) => setCustomMonths(e.target.value)}
-              placeholder="أشهر"
-              className={`${inputCls} w-24`}
-            />
-            <button
-              type="button"
-              disabled={busy || !(Number(customMonths) >= 1)}
-              className={btnPrimary}
-              onClick={() => {
-                renew(Math.floor(Number(customMonths)));
-                setCustomMonths("");
-              }}
-            >
-              جدّد
-            </button>
+      <Card title="مدة الاشتراك">
+        <div className="space-y-4">
+          <div>
+            <div className="text-xs text-neutral-400 mb-2">
+              تمديد — يُضاف من تاريخ الانتهاء الحالي إن لم يأتِ بعد، ومن اليوم إن كان منتهيًا. لا يرفع الإيقاف.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {RENEW_PRESETS.map((m) => (
+                <button key={m} type="button" disabled={busy} className={btnGhost} onClick={() => renew(m)}>
+                  +{m} شهر
+                </button>
+              ))}
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={customMonths}
+                  onChange={(e) => setCustomMonths(e.target.value)}
+                  placeholder="أشهر"
+                  className={`${inputCls} w-24`}
+                />
+                <button
+                  type="button"
+                  disabled={busy || !(Number(customMonths) >= 1)}
+                  className={btnPrimary}
+                  onClick={() => {
+                    renew(Math.floor(Number(customMonths)));
+                    setCustomMonths("");
+                  }}
+                >
+                  مدّد
+                </button>
+              </div>
+            </div>
           </div>
-          <button type="button" disabled={busy || !store.expiresAt} className={btnGhost} onClick={() => renew(0)}>
-            بلا انتهاء
-          </button>
+
+          <div>
+            <div className="text-xs text-neutral-400 mb-2">إنقاص — يُطرح من تاريخ الانتهاء الحالي.</div>
+            <div className="flex flex-wrap gap-2">
+              {[1, 3, 6].map((m) => (
+                <button key={m} type="button" disabled={busy || !store.expiresAt} className={btnGhost} onClick={() => reduce(m)}>
+                  −{m} شهر
+                </button>
+              ))}
+            </div>
+            {!store.expiresAt && (
+              <p className="text-[11px] text-neutral-500 mt-1">الاشتراك بلا انتهاء — حدّد له تاريخًا أولًا.</p>
+            )}
+          </div>
+
+          <div>
+            <div className="text-xs text-neutral-400 mb-2">
+              أو حدّد تاريخ الانتهاء مباشرة (الحالي: {fmtDate(store.expiresAt)})
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className={`${inputCls} w-auto`}
+              />
+              <button type="button" disabled={busy || !newDate} className={btnPrimary} onClick={applyDate}>
+                احفظ التاريخ
+              </button>
+              <button type="button" disabled={busy || !store.expiresAt} className={btnGhost} onClick={() => renew(0)}>
+                بلا انتهاء
+              </button>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -332,19 +389,7 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
         </div>
       </Card>
 
-      <Card title="حسابات المركزي">
-        <div className="space-y-1.5">
-          {storeUsers.map((u) => (
-            <div key={u.id} className="flex items-center justify-between gap-2 text-sm">
-              <span className="truncate">
-                {u.name} <span className="text-xs text-neutral-500">{u.role === "owner" ? "· مالك" : "· موظف"}</span>
-                {!u.active && <span className="text-xs text-red-400"> · معطّل</span>}
-              </span>
-              <span className="text-xs text-neutral-500 truncate" dir="ltr">{u.email}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <StoreAccountsCard storeId={store.id} storeName={store.name} storeUsers={storeUsers} busy={busy} act={act} />
 
       <Card title="سجل هذا المتجر">
         {log.length === 0 && <p className="text-sm text-neutral-500">لا عمليات مسجّلة.</p>}
