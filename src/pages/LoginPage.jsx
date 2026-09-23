@@ -16,12 +16,29 @@ export default function LoginPage({ onLoggedIn }) {
   const [platformKey, setPlatformKey] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [offlineReason, setOfflineReason] = useState("");
 
+  // ⚠ نفرّق بين أسباب الفشل بدل رسالة واحدة عامة: بلا ردّ إطلاقًا (CORS أو
+  // خادم متوقف) غير 404 (الباك إند لم يُنشر بالكود الجديد) غير 500
+  // (migration 032 لم تُشغَّل — جدول platform_admins غير موجود).
   const check = () => {
     setMode("checking");
     fetchSetupStatus()
       .then((r) => setMode(r.needsSetup ? "setup" : "login"))
-      .catch(() => setMode("offline"));
+      .catch((err) => {
+        if (!err?.status) {
+          setOfflineReason(
+            "لا ردّ من الخادم. غالبًا دومين هذه اللوحة غير مضاف إلى CORS_ORIGIN في الباك إند، أو VITE_API_URL خاطئ، أو الباك إند متوقف."
+          );
+        } else if (err.status === 404) {
+          setOfflineReason("الخادم يعمل لكن مسارات لوحة الأدمن غير موجودة (404) — انشر آخر نسخة من الباك إند.");
+        } else if (err.status >= 500) {
+          setOfflineReason(`خطأ في الخادم (${err.status}) — غالبًا migration 032_platform_admin.sql لم تُشغَّل على قاعدة البيانات.`);
+        } else {
+          setOfflineReason(`ردّ غير متوقع من الخادم (${err.status}).`);
+        }
+        setMode("offline");
+      });
   };
   useEffect(check, []);
 
@@ -63,7 +80,8 @@ export default function LoginPage({ onLoggedIn }) {
 
         {mode === "offline" && (
           <div className="space-y-3">
-            <ErrorBox>تعذّر الاتصال بالخادم — تحقّق من VITE_API_URL ومن تشغيل الباك إند.</ErrorBox>
+            <ErrorBox>{offlineReason || "تعذّر الاتصال بالخادم"}</ErrorBox>
+            <p className="text-[11px] text-neutral-500 text-center" dir="ltr">{import.meta.env.VITE_API_URL || "http://localhost:3001/api"}</p>
             <button type="button" onClick={check} className={`${btnPrimary} w-full`}>إعادة المحاولة</button>
           </div>
         )}
