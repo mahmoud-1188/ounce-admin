@@ -93,6 +93,11 @@ function fetchMe() {
   return apiFetch("/platform/auth/me");
 }
 
+/** تغيير اسم الأدمن وبريده وكلمة مروره — كلمة المرور الحالية مطلوبة دائمًا. */
+function updateMe(data) {
+  return apiFetch("/platform/auth/me", { method: "PATCH", body: data });
+}
+
 function logout() {
   setAuthToken(null);
 }
@@ -162,6 +167,7 @@ export {
   setupFirstAdmin,
   login,
   fetchMe,
+  updateMe,
   logout,
   listStores,
   createStore,

@@ -35,6 +35,15 @@ function describeLogEntry(e) {
     }
     case "store_user_password_reset":
       return d.email || "";
+    case "admin_updated": {
+      const b = d.before || {};
+      const a = d.after || {};
+      const parts = [];
+      if (b.name !== a.name) parts.push(`الاسم: ${b.name} ← ${a.name}`);
+      if (b.email !== a.email) parts.push(`البريد: ${b.email} ← ${a.email}`);
+      if (d.passwordChanged) parts.push("تغيير كلمة المرور");
+      return parts.join(" · ") || "بلا تغيير";
+    }
     case "admin_setup":
       return d.email || "";
     default:

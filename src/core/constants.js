@@ -28,6 +28,7 @@ const STATES = {
 
 const ACTIONS = {
   admin_setup: "إنشاء حساب الأدمن",
+  admin_updated: "تعديل حساب الأدمن",
   store_created: "إنشاء متجر",
   store_updated: "تعديل الاشتراك",
   store_renewed: "تجديد",
@@ -98,6 +99,8 @@ function errorMessage(err, fallback = "حدث خطأ غير متوقع") {
     case "invalid_operating_model": return "نموذج تشغيل غير صالح";
     case "invalid_status": return "حالة غير صالحة";
     case "store_user_not_found": return "الحساب غير موجود";
+    case "current_password_required": return "أدخل كلمة المرور الحالية";
+    case "wrong_current_password": return "كلمة المرور الحالية غير صحيحة";
     case "wrong_token_scope":
     case "invalid_or_expired_token":
     case "missing_token":

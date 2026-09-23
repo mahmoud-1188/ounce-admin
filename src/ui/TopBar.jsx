@@ -1,8 +1,9 @@
-import { LogOut, ScrollText, Store } from "lucide-react";
+import { LogOut, ScrollText, Store, UserCog } from "lucide-react";
 
 const TABS = [
   { id: "stores", label: "المتاجر", icon: Store },
   { id: "log", label: "السجل", icon: ScrollText },
+  { id: "account", label: "حسابي", icon: UserCog },
 ];
 
 /**
