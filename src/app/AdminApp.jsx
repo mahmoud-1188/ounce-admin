@@ -5,6 +5,7 @@ import StoresPage from "../pages/StoresPage.jsx";
 import NewStorePage from "../pages/NewStorePage.jsx";
 import StoreDetailPage from "../pages/StoreDetailPage.jsx";
 import LogPage from "../pages/LogPage.jsx";
+import AccountPage from "../pages/AccountPage.jsx";
 import TopBar from "../ui/TopBar.jsx";
 
 /**
@@ -64,6 +65,7 @@ export default function AdminApp() {
       />
       <main className="max-w-5xl mx-auto px-4 py-5">
         {tab === "log" && <LogPage onOpenStore={openStore} onAuthLost={signOut} />}
+        {tab === "account" && <AccountPage admin={admin} onUpdated={setAdmin} onAuthLost={signOut} />}
         {tab === "stores" && view.name === "list" && (
           <StoresPage onOpenStore={openStore} onNewStore={() => setView({ name: "new" })} onAuthLost={signOut} />
         )}
