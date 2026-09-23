@@ -1,0 +1,31 @@
+{
+  "name": "ounce-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "أوقية — لوحة أدمن المنصة (مالك البرنامج): المتاجر المشتركة، الباقات، سقف الفروع، مدة الاشتراك، الإيقاف والتجديد، وسجل العمليات. تطبيق منفصل عن ounce-central (المتجر) وounce-frontend (الفرع).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cp serve.json dist/serve.json",
+    "preview": "vite preview",
+    "start": "serve -s dist -l $PORT"
+  },
+  "dependencies": {
+    "lucide-react": "0.383.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "serve": "^14.2.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.1",
+    "autoprefixer": "10.4.19",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.4",
+    "vite": "5.3.1"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "fsevents": "npm:fsevents@0.0.0-0"
+  }
+}
