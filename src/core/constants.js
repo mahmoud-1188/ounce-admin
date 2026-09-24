@@ -38,7 +38,29 @@ const ACTIONS = {
   store_user_created: "إضافة حساب مركزي",
   store_user_updated: "تعديل حساب مركزي",
   store_user_password_reset: "كلمة مرور جديدة",
+  payment_recorded: "دفعة اشتراك",
+  payment_voided: "إلغاء دفعة",
 };
+
+// طرق الدفع — نفس القيم في subscription_payments (migration 043)
+const PAY_METHODS = [
+  { id: "transfer", label: "تحويل بنكي" },
+  { id: "cash", label: "نقدًا" },
+  { id: "card", label: "بطاقة" },
+  { id: "other", label: "أخرى" },
+];
+const payMethodLabel = (id) => PAY_METHODS.find((m) => m.id === id)?.label || id;
+
+const CURRENCY = "ر.س";
+const moneyFmt = new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+/** مبلغ بالريال — معزول الاتجاه كي لا ينقلب داخل النص العربي. */
+const fmtMoney = (n) => `\u2066${moneyFmt.format(Number(n) || 0)}\u2069 ${CURRENCY}`;
+
+/** السعر الشهري = الأساسي + سعر الفرع × الفروع المحتسبة (فرعٌ واحد على الأقل) — كما يحسبه الخادم. */
+function monthlyPrice(base, perBranch, branches) {
+  const b = Math.max(1, Number(branches) || 0);
+  return Math.round(((Number(base) || 0) + (Number(perBranch) || 0) * b) * 100) / 100;
+}
 
 const RENEW_PRESETS = [1, 3, 6, 12];
 
@@ -99,6 +121,13 @@ function errorMessage(err, fallback = "حدث خطأ غير متوقع") {
     case "invalid_operating_model": return "نموذج تشغيل غير صالح";
     case "invalid_status": return "حالة غير صالحة";
     case "store_user_not_found": return "الحساب غير موجود";
+    case "invalid_price": return "السعر غير صالح (رقم 0 أو أكثر)";
+    case "invalid_amount": return "المبلغ غير صالح";
+    case "invalid_payment_method": return "طريقة دفع غير صالحة";
+    case "invalid_paid_at": return "تاريخ الدفع غير صالح";
+    case "void_reason_required": return "اكتب سبب الإلغاء";
+    case "payment_already_voided": return "أُلغيت هذه الدفعة من قبل";
+    case "payment_not_found": return "الدفعة غير موجودة";
     case "current_password_required": return "أدخل كلمة المرور الحالية";
     case "wrong_current_password": return "كلمة المرور الحالية غير صحيحة";
     case "wrong_token_scope":
@@ -149,4 +178,9 @@ export {
   generatePassword,
   addMonths,
   CENTRAL_URL,
+  PAY_METHODS,
+  payMethodLabel,
+  CURRENCY,
+  fmtMoney,
+  monthlyPrice,
 };

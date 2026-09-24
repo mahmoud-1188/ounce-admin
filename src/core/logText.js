@@ -1,13 +1,13 @@
-import { ACTIONS, branchModelLabel, fmtDate, fmtDateTime, planLabel, stripIsolates } from "./constants.js";
+import { ACTIONS, branchModelLabel, fmtDate, fmtDateTime, fmtMoney, payMethodLabel, planLabel, stripIsolates } from "./constants.js";
 
 /** وصفٌ عربي مختصر لتفاصيل سطرٍ من سجل المنصة. */
 function describeLogEntry(e) {
   const d = e.details || {};
   switch (e.action) {
     case "store_created":
-      return `${planLabel(d.plan)} · سقف ${d.maxBranches} · ${d.months ? `${d.months} شهر حتى ${fmtDate(d.expiresAt)}` : "بلا انتهاء"} · المالك ${d.ownerEmail || "—"}`;
+      return `${planLabel(d.plan)} · سقف ${d.maxBranches} · ${d.months ? `${d.months} شهر حتى ${fmtDate(d.expiresAt)}` : "بلا انتهاء"} · المالك ${d.ownerEmail || "—"}${d.priceBase || d.pricePerBranch ? ` · السعر ${fmtMoney(d.priceBase)} + ${fmtMoney(d.pricePerBranch)}/فرع` : ""}`;
     case "store_renewed":
-      return d.months ? `+${d.months} شهر · ${fmtDate(d.before)} ← ${fmtDate(d.after)}` : "صار بلا انتهاء";
+      return (d.months ? `+${d.months} شهر · ${fmtDate(d.before)} ← ${fmtDate(d.after)}` : "صار بلا انتهاء") + (d.amount ? ` · دُفع ${fmtMoney(d.amount)}` : "");
     case "store_updated": {
       const b = d.before || {};
       const a = d.after || {};
@@ -16,6 +16,8 @@ function describeLogEntry(e) {
       if (b.plan !== a.plan) parts.push(`الباقة: ${planLabel(b.plan)} ← ${planLabel(a.plan)}`);
       if (b.maxBranches !== a.maxBranches) parts.push(`السقف: ${b.maxBranches} ← ${a.maxBranches}`);
       if (fmtDate(b.expiresAt) !== fmtDate(a.expiresAt)) parts.push(`الانتهاء: ${fmtDate(b.expiresAt)} ← ${fmtDate(a.expiresAt)}`);
+      if (b.priceBase !== undefined && b.priceBase !== a.priceBase) parts.push(`الأساسي: ${fmtMoney(b.priceBase)} ← ${fmtMoney(a.priceBase)}`);
+      if (b.pricePerBranch !== undefined && b.pricePerBranch !== a.pricePerBranch) parts.push(`سعر الفرع: ${fmtMoney(b.pricePerBranch)} ← ${fmtMoney(a.pricePerBranch)}`);
       return parts.join(" · ") || "بلا تغيير";
     }
     case "store_suspended":
@@ -44,6 +46,10 @@ function describeLogEntry(e) {
       if (d.passwordChanged) parts.push("تغيير كلمة المرور");
       return parts.join(" · ") || "بلا تغيير";
     }
+    case "payment_recorded":
+      return `${fmtMoney(d.amount)} · ${payMethodLabel(d.method)}${d.months ? ` · عن ${d.months} شهر` : ""}${d.note ? ` · ${d.note}` : ""}`;
+    case "payment_voided":
+      return `${fmtMoney(d.amount)} · السبب: ${d.reason || "—"}`;
     case "admin_setup":
       return d.email || "";
     default:

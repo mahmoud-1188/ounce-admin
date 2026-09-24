@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Search } from "lucide-react";
 import { listStores } from "../core/api.js";
-import { STATES, errorMessage, expiryText, fmtDate, planLabel } from "../core/constants.js";
+import { STATES, errorMessage, expiryText, fmtDate, fmtMoney, planLabel } from "../core/constants.js";
 import { ErrorBox, Stat, StateBadge, btnGhost, btnPrimary, inputCls } from "../ui/common.jsx";
 
 const FILTERS = [
@@ -39,6 +39,17 @@ export default function StoresPage({ onOpenStore, onNewStore, onAuthLost }) {
     return c;
   }, [stores]);
 
+  // الإيراد الشهري المتوقع: المتاجر السارية فقط (فعّال أو قارب الانتهاء)
+  const revenue = useMemo(() => {
+    const live = (stores || []).filter((s) => s.state === "active" || s.state === "expiring");
+    return {
+      monthly: live.reduce((a, s) => a + (s.pricing?.monthly || 0), 0),
+      paid: (stores || []).reduce((a, s) => a + (s.paidTotal || 0), 0),
+      priced: live.filter((s) => (s.pricing?.monthly || 0) > 0).length,
+      live: live.length,
+    };
+  }, [stores]);
+
   const visible = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (stores || [])
@@ -67,6 +78,11 @@ export default function StoresPage({ onOpenStore, onNewStore, onAuthLost }) {
         <Stat label="قارب الانتهاء" value={counts.expiring} tone="warn" sub="خلال 14 يومًا" />
         <Stat label="منتهٍ" value={counts.expired} tone="bad" />
         <Stat label="موقوف" value={counts.suspended} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Stat label="الإيراد الشهري المتوقع" value={fmtMoney(revenue.monthly)} sub={`${revenue.priced} من ${revenue.live} متجرًا ساريًا لها سعر`} tone="good" />
+        <Stat label="إجمالي المُحصَّل" value={fmtMoney(revenue.paid)} sub="كل المدفوعات غير الملغاة" />
       </div>
 
       <div className="relative">
@@ -115,6 +131,7 @@ export default function StoresPage({ onOpenStore, onNewStore, onAuthLost }) {
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400">
               <span>{planLabel(s.plan)}</span>
               <span>الفروع {s.branchCount}/{s.maxBranches}</span>
+              <span className="text-amber-300">{s.pricing?.monthly ? `${fmtMoney(s.pricing.monthly)} / شهر` : "بلا سعر"}</span>
               <span>{fmtDate(s.expiresAt)}</span>
               <span className={s.state === "expired" ? "text-red-400" : s.state === "expiring" ? "text-amber-400" : ""}>
                 {expiryText(s.expiresAt)}

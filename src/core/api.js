@@ -120,8 +120,19 @@ function updateStore(id, patch) {
   return apiFetch(`/platform/stores/${encodeURIComponent(id)}`, { method: "PATCH", body: patch });
 }
 
-function renewStore(id, months) {
-  return apiFetch(`/platform/stores/${encodeURIComponent(id)}/renew`, { method: "POST", body: { months } });
+/** payment (اختياري): { amount, method, note } — يُسجَّل دفعةً مع التجديد. */
+function renewStore(id, months, payment) {
+  return apiFetch(`/platform/stores/${encodeURIComponent(id)}/renew`, { method: "POST", body: { months, payment } });
+}
+
+/** دفعة منفردة لا تغيّر تاريخ الانتهاء: { amount, months?, method, note?, paidAt? } */
+function addPayment(storeId, payment) {
+  return apiFetch(`/platform/stores/${encodeURIComponent(storeId)}/payments`, { method: "POST", body: payment });
+}
+
+/** إلغاء دفعة بسبب — لا حذف. */
+function voidPayment(paymentId, reason) {
+  return apiFetch(`/platform/payments/${encodeURIComponent(paymentId)}/void`, { method: "POST", body: { reason } });
 }
 
 function setStoreStatus(id, status, reason) {
@@ -174,6 +185,8 @@ export {
   getStore,
   updateStore,
   renewStore,
+  addPayment,
+  voidPayment,
   setStoreStatus,
   setBranchOperatingModel,
   addStoreOwner,

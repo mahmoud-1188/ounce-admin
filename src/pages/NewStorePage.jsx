@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowRight, Copy, KeyRound } from "lucide-react";
 import { createStore } from "../core/api.js";
-import { CENTRAL_URL, PLANS, errorMessage, fmtDate, generatePassword } from "../core/constants.js";
+import { CENTRAL_URL, PAY_METHODS, PLANS, errorMessage, fmtDate, fmtMoney, generatePassword, monthlyPrice } from "../core/constants.js";
 import { Card, ErrorBox, Field, btnGhost, btnPrimary, inputCls } from "../ui/common.jsx";
 
 /**
@@ -18,6 +18,11 @@ export default function NewStorePage({ onBack, onCreated }) {
     ownerName: "",
     ownerEmail: "",
     ownerPassword: generatePassword(),
+    priceBase: "",
+    pricePerBranch: "",
+    payAmount: "",
+    payMethod: "transfer",
+    payNote: "",
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,6 +31,11 @@ export default function NewStorePage({ onBack, onCreated }) {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const branchOnly = form.plan === "branch_only";
+  // ⚠ لا فروع عند الإنشاء — يُحتسب فرعٌ واحد، ويزيد الشهري تلقائيًّا مع كل فرعٍ يُنشئه المالك
+  const monthly1 = monthlyPrice(form.priceBase, form.pricePerBranch, 1);
+  const monthlyCap = monthlyPrice(form.priceBase, form.pricePerBranch, branchOnly ? 1 : Number(form.maxBranches) || 1);
+  const suggested = Math.round(monthly1 * (Number(form.months) || 0) * 100) / 100;
+  const num = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value.replace(/[^\d.]/g, "") }));
 
   async function submit(e) {
     e.preventDefault();
@@ -40,6 +50,11 @@ export default function NewStorePage({ onBack, onCreated }) {
         ownerName: form.ownerName.trim(),
         ownerEmail: form.ownerEmail.trim(),
         ownerPassword: form.ownerPassword,
+        priceBase: Number(form.priceBase) || 0,
+        pricePerBranch: Number(form.pricePerBranch) || 0,
+        payment: Number(form.payAmount) > 0
+          ? { amount: Number(form.payAmount), method: form.payMethod, note: form.payNote.trim() }
+          : undefined,
       });
       setCreated({ store, email: form.ownerEmail.trim(), password: form.ownerPassword });
     } catch (err) {
@@ -127,6 +142,41 @@ export default function NewStorePage({ onBack, onCreated }) {
             </Field>
             <Field label="مدة الاشتراك (شهر)" hint="0 = بلا انتهاء (للعملاء الدائمين فقط)">
               <input type="number" min="0" value={form.months} onChange={set("months")} className={inputCls} />
+            </Field>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="سعر الاشتراك">
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="الأساسي شهريًّا (ر.س)" hint="رسم المتجر ثابتًا كل شهر">
+              <input inputMode="decimal" value={form.priceBase} onChange={num("priceBase")} className={inputCls} placeholder="0" dir="ltr" />
+            </Field>
+            <Field label="لكل فرع شهريًّا (ر.س)" hint="يُضرب في الفروع العاملة — فرعٌ واحد على الأقل">
+              <input inputMode="decimal" value={form.pricePerBranch} onChange={num("pricePerBranch")} className={inputCls} placeholder="0" dir="ltr" />
+            </Field>
+          </div>
+          <p className="text-xs text-neutral-400 leading-6">
+            الشهري الآن (فرع واحد): <b className="text-amber-300">{fmtMoney(monthly1)}</b>
+            {!branchOnly && Number(form.maxBranches) > 1 && <> · عند بلوغ السقف ({form.maxBranches} فروع): {fmtMoney(monthlyCap)}</>}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="المدفوع الآن (ر.س)" hint={suggested > 0 ? `المقترح ${fmtMoney(suggested)} = الشهري × ${form.months} شهر` : "اتركه فارغًا إن لم يُدفع بعد"}>
+              <div className="flex gap-2">
+                <input inputMode="decimal" value={form.payAmount} onChange={num("payAmount")} className={inputCls} placeholder="0" dir="ltr" />
+                {suggested > 0 && (
+                  <button type="button" className={btnGhost} onClick={() => setForm((f) => ({ ...f, payAmount: String(suggested) }))}>المقترح</button>
+                )}
+              </div>
+            </Field>
+            <Field label="طريقة الدفع">
+              <select value={form.payMethod} onChange={set("payMethod")} className={inputCls}>
+                {PAY_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </Field>
+            <Field label="ملاحظة الدفعة">
+              <input value={form.payNote} onChange={set("payNote")} className={inputCls} placeholder="رقم الحوالة…" />
             </Field>
           </div>
         </div>

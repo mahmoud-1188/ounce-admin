@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Ban, CheckCircle2, Pencil } from "lucide-react";
-import { fetchLog, getStore, renewStore, setBranchOperatingModel, setStoreStatus, updateStore } from "../core/api.js";
+import { addPayment, fetchLog, getStore, renewStore, setBranchOperatingModel, setStoreStatus, updateStore, voidPayment } from "../core/api.js";
 import {
   BRANCH_MODELS,
+  PAY_METHODS,
   PLANS,
   RENEW_PRESETS,
   addMonths,
@@ -10,6 +11,9 @@ import {
   expiryText,
   fmtDate,
   fmtDateTime,
+  fmtMoney,
+  monthlyPrice,
+  payMethodLabel,
   planLabel,
 } from "../core/constants.js";
 import { actionLabel, describeLogEntry } from "../core/logText.js";
@@ -38,6 +42,11 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
   const [editing, setEditing] = useState(false);
   const [edit, setEdit] = useState(null);
   const [customMonths, setCustomMonths] = useState("");
+  // التجديد مع دفعته: تُختار المدة، فيُقترح المبلغ = الشهري × الأشهر (قابلٌ للتعديل)
+  const [renewMonths, setRenewMonths] = useState(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("transfer");
+  const [payNote, setPayNote] = useState("");
   const [reason, setReason] = useState("");
   const [newDate, setNewDate] = useState("");
 
@@ -83,13 +92,25 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
     );
   }
 
-  const { store, branches, storeUsers } = data;
+  const { store, branches, storeUsers, payments = [] } = data;
+  const monthly = store.pricing?.monthly || 0;
+  const suggestFor = (m) => (monthly > 0 && m > 0 ? String(Math.round(monthly * m * 100) / 100) : "");
+  const pickMonths = (m) => {
+    setRenewMonths(m);
+    setPayAmount(suggestFor(m));
+  };
   const activeBranches = branches.filter((b) => !b.deletedAt);
   const suspended = store.status !== "active";
 
-  const renew = (months) => {
+  const renew = async (months) => {
     if (months === 0 && !confirm("اجعل اشتراك هذا المتجر بلا انتهاء؟ (للعملاء الدائمين فقط)")) return;
-    act(() => renewStore(store.id, months), months ? `جُدِّد ${months} شهر` : "صار الاشتراك بلا انتهاء");
+    const amount = months > 0 ? Number(payAmount) || 0 : 0;
+    const payment = amount > 0 ? { amount, method: payMethod, note: payNote.trim() } : undefined;
+    const ok = await act(
+      () => renewStore(store.id, months, payment),
+      months ? `جُدِّد ${months} شهر${amount > 0 ? ` · سُجّلت دفعة ${fmtMoney(amount)}` : " · بلا دفعة"}` : "صار الاشتراك بلا انتهاء"
+    );
+    if (ok) { setRenewMonths(null); setPayAmount(""); setPayNote(""); }
   };
 
   // ⚠ الإنقاص وتحديد التاريخ يمرّان عبر PATCH expiresAt (يُسجَّل «تعديل
@@ -119,6 +140,8 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
       maxBranches: store.maxBranches,
       noExpiry: !store.expiresAt,
       expiresDate: toDateInput(store.expiresAt),
+      priceBase: String(store.pricing?.base ?? 0),
+      pricePerBranch: String(store.pricing?.perBranch ?? 0),
     });
     setEditing(true);
   };
@@ -133,6 +156,8 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
           maxBranches: edit.plan === "branch_only" ? 1 : Number(edit.maxBranches),
           // نهاية اليوم المختار بالتوقيت المحلي — لا يُقطع اشتراك العميل منتصف يومه الأخير.
           expiresAt: edit.noExpiry ? null : new Date(`${edit.expiresDate}T23:59:59`).toISOString(),
+          priceBase: Number(edit.priceBase) || 0,
+          pricePerBranch: Number(edit.pricePerBranch) || 0,
         }),
       "حُفظت التعديلات"
     );
@@ -174,6 +199,16 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
         />
       </div>
 
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <Stat
+          label="السعر الشهري"
+          value={fmtMoney(monthly)}
+          sub={`${fmtMoney(store.pricing?.base)} + ${fmtMoney(store.pricing?.perBranch)} × ${store.pricing?.billableBranches || 1} فرع`}
+        />
+        <Stat label="المدفوع إجمالًا" value={fmtMoney(store.paidTotal)} sub={`${payments.filter((p) => !p.voidedAt).length} دفعة`} tone="good" />
+        <Stat label="آخر دفعة" value={store.lastPaidAt ? fmtDate(store.lastPaidAt) : "—"} />
+      </div>
+
       <Card title="مدة الاشتراك">
         <div className="space-y-4">
           <div>
@@ -182,32 +217,52 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
             </div>
             <div className="flex flex-wrap gap-2">
               {RENEW_PRESETS.map((m) => (
-                <button key={m} type="button" disabled={busy} className={btnGhost} onClick={() => renew(m)}>
+                <button key={m} type="button" disabled={busy}
+                  className={renewMonths === m ? btnPrimary : btnGhost} onClick={() => pickMonths(m)}>
                   +{m} شهر
                 </button>
               ))}
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  value={customMonths}
-                  onChange={(e) => setCustomMonths(e.target.value)}
-                  placeholder="أشهر"
-                  className={`${inputCls} w-24`}
-                />
-                <button
-                  type="button"
-                  disabled={busy || !(Number(customMonths) >= 1)}
-                  className={btnPrimary}
-                  onClick={() => {
-                    renew(Math.floor(Number(customMonths)));
-                    setCustomMonths("");
-                  }}
-                >
-                  مدّد
-                </button>
-              </div>
+              <input
+                type="number"
+                min="1"
+                value={customMonths}
+                onChange={(e) => {
+                  setCustomMonths(e.target.value);
+                  const m = Math.floor(Number(e.target.value));
+                  if (m >= 1) pickMonths(m); else setRenewMonths(null);
+                }}
+                placeholder="أشهر"
+                className={`${inputCls} w-24`}
+              />
             </div>
+            {renewMonths > 0 && (
+              <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950 p-3 space-y-2">
+                <div className="text-xs text-neutral-300">
+                  تجديد {renewMonths} شهر
+                  {monthly > 0 ? <> · المقترح {fmtMoney(monthly * renewMonths)} = {fmtMoney(monthly)} × {renewMonths}</> : <> · لا سعر مضبوط لهذا المتجر</>}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <Field label="المدفوع (ر.س)" hint="0 أو فارغ = تجديد بلا دفعة">
+                    <input inputMode="decimal" dir="ltr" value={payAmount}
+                      onChange={(e) => setPayAmount(e.target.value.replace(/[^\d.]/g, ""))} className={inputCls} placeholder="0" />
+                  </Field>
+                  <Field label="طريقة الدفع">
+                    <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={inputCls}>
+                      {PAY_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="ملاحظة">
+                    <input value={payNote} onChange={(e) => setPayNote(e.target.value)} className={inputCls} placeholder="رقم الحوالة…" />
+                  </Field>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" disabled={busy} className={btnPrimary} onClick={() => renew(renewMonths)}>
+                    جدّد {renewMonths} شهر{Number(payAmount) > 0 ? ` وسجّل ${fmtMoney(payAmount)}` : ""}
+                  </button>
+                  <button type="button" disabled={busy} className={btnGhost} onClick={() => { setRenewMonths(null); setCustomMonths(""); }}>إلغاء</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -264,6 +319,10 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
             <dd>{planLabel(store.plan)}</dd>
             <dt className="text-neutral-500">سقف الفروع</dt>
             <dd>{store.maxBranches}</dd>
+            <dt className="text-neutral-500">الأساسي شهريًّا</dt>
+            <dd>{fmtMoney(store.pricing?.base)}</dd>
+            <dt className="text-neutral-500">لكل فرع شهريًّا</dt>
+            <dd>{fmtMoney(store.pricing?.perBranch)}</dd>
             <dt className="text-neutral-500">ينتهي</dt>
             <dd>{fmtDate(store.expiresAt)}</dd>
             <dt className="text-neutral-500">أُنشئ</dt>
@@ -291,6 +350,17 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
                   onChange={(e) => setEdit({ ...edit, maxBranches: e.target.value })}
                   className={inputCls}
                 />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="الأساسي شهريًّا (ر.س)">
+                <input inputMode="decimal" dir="ltr" value={edit.priceBase}
+                  onChange={(e) => setEdit({ ...edit, priceBase: e.target.value.replace(/[^\d.]/g, "") })} className={inputCls} />
+              </Field>
+              <Field label="لكل فرع شهريًّا (ر.س)"
+                hint={`الشهري بعد الحفظ: ${fmtMoney(monthlyPrice(edit.priceBase, edit.pricePerBranch, store.branchCount))} (${Math.max(1, store.branchCount)} فرع محتسب)`}>
+                <input inputMode="decimal" dir="ltr" value={edit.pricePerBranch}
+                  onChange={(e) => setEdit({ ...edit, pricePerBranch: e.target.value.replace(/[^\d.]/g, "") })} className={inputCls} />
               </Field>
             </div>
             <Field label="تاريخ الانتهاء">
@@ -323,6 +393,8 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
           </div>
         )}
       </Card>
+
+      <PaymentsCard storeId={store.id} payments={payments} monthly={monthly} busy={busy} act={act} />
 
       <Card title={suspended ? "المتجر موقوف" : "إيقاف المتجر"}>
         <p className="text-xs text-neutral-500 mb-3 leading-6">
@@ -414,5 +486,101 @@ function BackLink({ onBack }) {
     <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-100">
       <ArrowRight size={16} /> المتاجر
     </button>
+  );
+}
+
+/**
+ * مدفوعات الاشتراك — ما سُجّل مع كل تجديد أو منفردًا. لا حذف: الدفعة
+ * الخاطئة تُلغى بسببٍ مكتوب وتبقى ظاهرةً مشطوبة.
+ */
+function PaymentsCard({ storeId, payments, monthly, busy, act }) {
+  const [adding, setAdding] = useState(false);
+  const [f, setF] = useState({ amount: "", months: "", method: "transfer", note: "", paidAt: "" });
+  const [voidId, setVoidId] = useState(null);
+  const [voidReason, setVoidReason] = useState("");
+  const active = payments.filter((p) => !p.voidedAt);
+  const total = active.reduce((a, p) => a + p.amount, 0);
+
+  const submit = async () => {
+    const ok = await act(
+      () => addPayment(storeId, {
+        amount: Number(f.amount),
+        months: f.months ? Number(f.months) : undefined,
+        method: f.method,
+        note: f.note.trim(),
+        paidAt: f.paidAt ? new Date(`${f.paidAt}T12:00:00`).toISOString() : undefined,
+      }),
+      `سُجّلت دفعة ${fmtMoney(f.amount)}`
+    );
+    if (ok) { setAdding(false); setF({ amount: "", months: "", method: "transfer", note: "", paidAt: "" }); }
+  };
+
+  const doVoid = async (p) => {
+    const ok = await act(() => voidPayment(p.id, voidReason.trim()), `أُلغيت دفعة ${fmtMoney(p.amount)}`);
+    if (ok) { setVoidId(null); setVoidReason(""); }
+  };
+
+  return (
+    <Card
+      title={`المدفوعات · ${fmtMoney(total)}`}
+      actions={!adding && (
+        <button type="button" className={btnGhost} onClick={() => setAdding(true)}>+ دفعة</button>
+      )}
+    >
+      {adding && (
+        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3 mb-3 space-y-2">
+          <p className="text-[11px] text-neutral-500">دفعةٌ منفردة (سداد متأخر أو جزئي) — لا تغيّر تاريخ الانتهاء. للتمديد مع الدفع استعمل «مدة الاشتراك».</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Field label="المبلغ (ر.س)">
+              <input inputMode="decimal" dir="ltr" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value.replace(/[^\d.]/g, "") })} className={inputCls} />
+            </Field>
+            <Field label="عن كم شهر (اختياري)" hint={monthly > 0 && f.months ? `= ${fmtMoney(monthly * Number(f.months))}` : undefined}>
+              <input type="number" min="0" value={f.months} onChange={(e) => setF({ ...f, months: e.target.value })} className={inputCls} />
+            </Field>
+            <Field label="الطريقة">
+              <select value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })} className={inputCls}>
+                {PAY_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </Field>
+            <Field label="تاريخ الدفع">
+              <input type="date" value={f.paidAt} onChange={(e) => setF({ ...f, paidAt: e.target.value })} className={inputCls} />
+            </Field>
+          </div>
+          <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} className={inputCls} placeholder="ملاحظة (رقم الحوالة…)" />
+          <div className="flex gap-2">
+            <button type="button" disabled={busy || !(Number(f.amount) > 0)} className={btnPrimary} onClick={submit}>سجّل الدفعة</button>
+            <button type="button" disabled={busy} className={btnGhost} onClick={() => setAdding(false)}>إلغاء</button>
+          </div>
+        </div>
+      )}
+      {payments.length === 0 ? (
+        <p className="text-sm text-neutral-500">لا مدفوعات مسجّلة بعد.</p>
+      ) : (
+        <div className="space-y-2">
+          {payments.map((p) => (
+            <div key={p.id} className={`text-sm border-b border-neutral-800 pb-2 last:border-0 ${p.voidedAt ? "opacity-60" : ""}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className={`font-semibold tabular-nums ${p.voidedAt ? "line-through text-neutral-500" : "text-emerald-300"}`}>{fmtMoney(p.amount)}</span>
+                <span className="text-xs text-neutral-500 shrink-0">{fmtDate(p.paidAt)}</span>
+              </div>
+              <div className="text-xs text-neutral-400">
+                {payMethodLabel(p.method)}{p.months ? ` · عن ${p.months} شهر` : ""}{p.note ? ` · ${p.note}` : ""}{p.adminName ? ` · ${p.adminName}` : ""}
+              </div>
+              {p.voidedAt ? (
+                <div className="text-[11px] text-red-400">أُلغيت {fmtDate(p.voidedAt)}{p.voidedByName ? ` — ${p.voidedByName}` : ""} · {p.voidReason}</div>
+              ) : voidId === p.id ? (
+                <div className="flex gap-2 mt-1.5">
+                  <input value={voidReason} onChange={(e) => setVoidReason(e.target.value)} className={inputCls} placeholder="سبب الإلغاء (إلزامي)" />
+                  <button type="button" disabled={busy || !voidReason.trim()} className={`${btnDanger} shrink-0`} onClick={() => doVoid(p)}>ألغِ</button>
+                  <button type="button" className={`${btnGhost} shrink-0`} onClick={() => setVoidId(null)}>تراجع</button>
+                </div>
+              ) : (
+                <button type="button" className="text-[11px] text-neutral-500 hover:text-red-400 mt-0.5" onClick={() => { setVoidId(p.id); setVoidReason(""); }}>إلغاء الدفعة</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
