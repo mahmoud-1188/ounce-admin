@@ -71,9 +71,9 @@ export default function LoginPage({ onLoggedIn }) {
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4">
         <div className="text-center space-y-1 mb-2">
-          <img src="/brand/logo-mark-transparent.png" alt="أوقية" className="h-12 w-12 mx-auto" />
+          <img src="/brand/logo-mark-transparent.png" alt="أونصة" className="h-12 w-12 mx-auto" />
           <h1 className="text-lg font-semibold">أدمن المنصة</h1>
-          <p className="text-xs text-neutral-400">أوقية — إدارة المشتركين والاشتراكات</p>
+          <p className="text-xs text-neutral-400">أونصة — إدارة المشتركين والاشتراكات</p>
         </div>
 
         {mode === "checking" && <p className="text-sm text-neutral-400 text-center">جارِ الاتصال…</p>}

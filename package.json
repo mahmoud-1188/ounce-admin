@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "أوقية — لوحة أدمن المنصة (مالك البرنامج): المتاجر المشتركة، الباقات، سقف الفروع، مدة الاشتراك، الإيقاف والتجديد، وسجل العمليات. تطبيق منفصل عن ounce-central (المتجر) وounce-frontend (الفرع).",
+  "description": "أونصة — لوحة أدمن المنصة (مالك البرنامج): المتاجر المشتركة، الباقات، سقف الفروع، مدة الاشتراك، الإيقاف والتجديد، وسجل العمليات. تطبيق منفصل عن ounce-central (المتجر) وounce-frontend (الفرع).",
   "scripts": {
     "dev": "vite",
     "build": "vite build && cp serve.json dist/serve.json",

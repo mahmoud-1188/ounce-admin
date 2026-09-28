@@ -66,7 +66,7 @@ export default function NewStorePage({ onBack, onCreated }) {
 
   if (created) {
     const msg = [
-      `أهلًا بك في أوقية — ${created.store.name}`,
+      `أهلًا بك في أونصة — ${created.store.name}`,
       CENTRAL_URL ? `رابط الإدارة المركزية: ${CENTRAL_URL}` : null,
       `البريد: ${created.email}`,
       `كلمة المرور: ${created.password}`,

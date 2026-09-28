@@ -29,7 +29,7 @@ export default function LogPage({ onOpenStore, onAuthLost }) {
         <button
           type="button"
           disabled={!entries?.length}
-          onClick={() => downloadText(`oqiyyah-platform-log-${new Date().toISOString().slice(0, 10)}.csv`, logToCsv(entries))}
+          onClick={() => downloadText(`awnsah-platform-log-${new Date().toISOString().slice(0, 10)}.csv`, logToCsv(entries))}
           className={`${btnGhost} flex items-center gap-1.5`}
         >
           <Download size={16} /> صدّر CSV
