@@ -1,4 +1,4 @@
-import { ACTIONS, branchModelLabel, fmtDate, fmtDateTime, fmtMoney, payMethodLabel, planLabel, stripIsolates } from "./constants.js";
+import { ACTIONS, branchModelLabel, fmtDate, fmtDateTime, fmtMoney, packageLabel, payMethodLabel, planLabel, stripIsolates } from "./constants.js";
 
 /** وصفٌ عربي مختصر لتفاصيل سطرٍ من سجل المنصة. */
 function describeLogEntry(e) {
@@ -14,6 +14,7 @@ function describeLogEntry(e) {
       const parts = [];
       if (b.name !== a.name) parts.push(`الاسم: ${b.name} ← ${a.name}`);
       if (b.plan !== a.plan) parts.push(`الباقة: ${planLabel(b.plan)} ← ${planLabel(a.plan)}`);
+      if (b.package !== undefined && b.package !== a.package) parts.push(`المحاسبة: ${packageLabel(b.package)} ← ${packageLabel(a.package)}`);
       if (b.maxBranches !== a.maxBranches) parts.push(`السقف: ${b.maxBranches} ← ${a.maxBranches}`);
       if (fmtDate(b.expiresAt) !== fmtDate(a.expiresAt)) parts.push(`الانتهاء: ${fmtDate(b.expiresAt)} ← ${fmtDate(a.expiresAt)}`);
       if (b.priceBase !== undefined && b.priceBase !== a.priceBase) parts.push(`الأساسي: ${fmtMoney(b.priceBase)} ← ${fmtMoney(a.priceBase)}`);

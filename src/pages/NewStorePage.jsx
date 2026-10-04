@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowRight, Copy, KeyRound } from "lucide-react";
 import { createStore } from "../core/api.js";
-import { CENTRAL_URL, PAY_METHODS, PLANS, errorMessage, fmtDate, fmtMoney, generatePassword, monthlyPrice } from "../core/constants.js";
+import { CENTRAL_URL, PACKAGES, PAY_METHODS, PLANS, errorMessage, fmtDate, fmtMoney, generatePassword, monthlyPrice } from "../core/constants.js";
 import { Card, ErrorBox, Field, btnGhost, btnPrimary, inputCls } from "../ui/common.jsx";
 
 /**
@@ -13,6 +13,7 @@ export default function NewStorePage({ onBack, onCreated }) {
   const [form, setForm] = useState({
     name: "",
     plan: "central",
+    package: "full",
     maxBranches: 3,
     months: 12,
     ownerName: "",
@@ -45,6 +46,7 @@ export default function NewStorePage({ onBack, onCreated }) {
       const { store } = await createStore({
         name: form.name.trim(),
         plan: form.plan,
+        package: form.package,
         maxBranches: branchOnly ? 1 : Number(form.maxBranches),
         months: Number(form.months),
         ownerName: form.ownerName.trim(),
@@ -126,6 +128,13 @@ export default function NewStorePage({ onBack, onCreated }) {
             <Field label="الباقة" hint={PLANS.find((p) => p.id === form.plan)?.hint}>
               <select value={form.plan} onChange={set("plan")} className={inputCls}>
                 {PLANS.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="المحاسبة" hint={PACKAGES.find((p) => p.id === form.package)?.hint}>
+              <select value={form.package} onChange={set("package")} className={inputCls}>
+                {PACKAGES.map((p) => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
               </select>

@@ -8,6 +8,13 @@ const PLANS = [
 
 const planLabel = (id) => PLANS.find((p) => p.id === id)?.label || id;
 
+// باقة المحاسبة (migration 070 في الباك إند): بدون محاسبة تُخفي القسم المحاسبي في الفرع والإدارة — القيود تبقى في الخلفية
+const PACKAGES = [
+  { id: "full", label: "مع المحاسبة", hint: "كل الأقسام: اليومية والأستاذ والقوائم والزكاة وإقفال الأشهر" },
+  { id: "no_accounting", label: "بدون محاسبة", hint: "كل شيء ما عدا القسم المحاسبي — الإقرار الضريبي والفوترة الإلكترونية باقيان" },
+];
+const packageLabel = (id) => PACKAGES.find((p) => p.id === (id || "full"))?.label || id;
+
 // نفس BRANCH_MODELS في النموذج الأولي (المعرّفات والتسميات والتلميحات).
 const BRANCH_MODELS = [
   { id: "full", label: "فرعٌ كامل", hint: "يشتري ويُكوّد ويطبع بنفسه" },
@@ -111,6 +118,7 @@ function errorMessage(err, fallback = "حدث خطأ غير متوقع") {
     case "email_already_used": return "هذا البريد مستخدم لحسابٍ آخر";
     case "store_name_required": return "أدخل اسم الشركة";
     case "invalid_plan": return "باقة غير صالحة";
+    case "invalid_package": return "خيار المحاسبة غير صالح";
     case "invalid_months": return "مدة الاشتراك غير صالحة";
     case "invalid_max_branches": return "سقف الفروع يجب أن يكون 1 أو أكثر";
     case "owner_name_and_email_required": return "أدخل اسم المالك وبريده";
@@ -164,6 +172,8 @@ const CENTRAL_URL = (import.meta.env.VITE_CENTRAL_APP_URL || "").replace(/\/+$/,
 export {
   PLANS,
   planLabel,
+  PACKAGES,
+  packageLabel,
   BRANCH_MODELS,
   branchModelLabel,
   STATES,

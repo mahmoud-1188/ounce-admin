@@ -129,7 +129,7 @@ export default function StoresPage({ onOpenStore, onNewStore, onAuthLost }) {
               <StateBadge state={s.state} />
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400">
-              <span>{planLabel(s.plan)}</span>
+              <span>{planLabel(s.plan)}{s.package === "no_accounting" ? " · بدون محاسبة" : ""}</span>
               <span>الفروع {s.branchCount}/{s.maxBranches}</span>
               <span className="text-amber-300">{s.pricing?.monthly ? `${fmtMoney(s.pricing.monthly)} / شهر` : "بلا سعر"}</span>
               <span>{fmtDate(s.expiresAt)}</span>
