@@ -15,6 +15,8 @@ import {
   monthlyPrice,
   payMethodLabel,
   planLabel,
+  PACKAGES,
+  packageLabel,
 } from "../core/constants.js";
 import { actionLabel, describeLogEntry } from "../core/logText.js";
 import StoreAccountsCard from "./StoreAccountsCard.jsx";
@@ -137,6 +139,7 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
     setEdit({
       name: store.name,
       plan: store.plan,
+      package: store.package || "full",
       maxBranches: store.maxBranches,
       noExpiry: !store.expiresAt,
       expiresDate: toDateInput(store.expiresAt),
@@ -153,6 +156,7 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
         updateStore(store.id, {
           name: edit.name.trim(),
           plan: edit.plan,
+          package: edit.package,
           maxBranches: edit.plan === "branch_only" ? 1 : Number(edit.maxBranches),
           // نهاية اليوم المختار بالتوقيت المحلي — لا يُقطع اشتراك العميل منتصف يومه الأخير.
           expiresAt: edit.noExpiry ? null : new Date(`${edit.expiresDate}T23:59:59`).toISOString(),
@@ -189,7 +193,7 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
       <Notice>{notice}</Notice>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Stat label="الباقة" value={planLabel(store.plan)} />
+        <Stat label="الباقة" value={planLabel(store.plan)} sub={packageLabel(store.package)} />
         <Stat label="الفروع" value={`${store.branchCount}/${store.maxBranches}`} sub="العاملة / السقف" />
         <Stat label="ينتهي" value={fmtDate(store.expiresAt)} />
         <Stat
@@ -317,6 +321,8 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
             <dd>{store.name}</dd>
             <dt className="text-neutral-500">الباقة</dt>
             <dd>{planLabel(store.plan)}</dd>
+            <dt className="text-neutral-500">المحاسبة</dt>
+            <dd>{packageLabel(store.package)}</dd>
             <dt className="text-neutral-500">سقف الفروع</dt>
             <dd>{store.maxBranches}</dd>
             <dt className="text-neutral-500">الأساسي شهريًّا</dt>
@@ -337,6 +343,13 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
               <Field label="الباقة">
                 <select value={edit.plan} onChange={(e) => setEdit({ ...edit, plan: e.target.value })} className={inputCls}>
                   {PLANS.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="المحاسبة" hint={PACKAGES.find((p) => p.id === edit.package)?.hint}>
+                <select value={edit.package} onChange={(e) => setEdit({ ...edit, package: e.target.value })} className={inputCls}>
+                  {PACKAGES.map((p) => (
                     <option key={p.id} value={p.id}>{p.label}</option>
                   ))}
                 </select>
