@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Ban, CheckCircle2, Pencil } from "lucide-react";
-import { addPayment, fetchLog, getStore, renewStore, setBranchOperatingModel, setStoreStatus, updateStore, voidPayment } from "../core/api.js";
+import { addPayment, fetchLog, getStore, renewStore, setStoreStatus, updateStore, voidPayment } from "../core/api.js";
 import {
-  BRANCH_MODELS,
   PAY_METHODS,
   PLANS,
   RENEW_PRESETS,
@@ -431,7 +430,7 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
 
       <Card title={`الفروع (${activeBranches.length})`}>
         <p className="text-[11px] text-neutral-500 mb-3 leading-5">
-          نموذج التشغيل يُحفظ الآن لكل فرع. تطبيقه على الشراء والتكويد داخل تطبيق الفرع مرحلةٌ لاحقة.
+          من يكوّد في كل فرع (الفرع · الإدارة · الاثنان) تقرّره الإدارة المركزية للعميل من تطبيقها — لا من هنا. هنا تحدّد النسخة فقط: بمحاسبة أو بدونها.
         </p>
         {branches.length === 0 && (
           <p className="text-sm text-neutral-500">لا فروع بعد — ينشئها المالك من تطبيق المركزي داخل السقف.</p>
@@ -453,22 +452,9 @@ export default function StoreDetailPage({ storeId, onBack, onAuthLost }) {
                     {b.ref} · {b.userCount} موظف
                   </div>
                 </div>
-                <select
-                  value={b.operatingModel}
-                  disabled={busy || !!b.deletedAt}
-                  onChange={(e) =>
-                    act(() => setBranchOperatingModel(b.id, e.target.value), `نموذج «${b.name}» تغيّر`)
-                  }
-                  className={`${inputCls} w-auto max-w-[45%]`}
-                >
-                  {BRANCH_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>{m.label}</option>
-                  ))}
-                </select>
+
               </div>
-              <div className="text-[11px] text-neutral-500 mt-1">
-                {BRANCH_MODELS.find((m) => m.id === b.operatingModel)?.hint}
-              </div>
+
             </div>
           ))}
         </div>
